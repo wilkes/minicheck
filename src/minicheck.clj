@@ -26,7 +26,11 @@
     #(nth coll (g))))
 
 (defn one-of [gen-coll]
-  (let [gens (elements gen-coll)]))
+  (let [gens (elements gen-coll)]
+    ;; nested the function to make the unwrapping a bit more clear
+    (fn []
+      (let [g (gens)]
+        (g)))))
 
 (defn such-that [test-fn gen]
   #(first (filter test-fn (repeatedly gen))))
