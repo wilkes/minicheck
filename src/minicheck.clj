@@ -23,9 +23,9 @@
 (defn elements [coll]
   (let [g (generator {:for :int
                       :size (count coll)})]
-    #(nth coll (g))))
+    #(nth (vec coll) (g))))
 
-(defn one-of [gen-coll]
+(defn one-of [& gen-coll]
   (let [gens (elements gen-coll)]
     ;; nested the function to make the unwrapping a bit more clear
     (fn []
@@ -56,12 +56,36 @@
      (doseq [s (sample* gen size)]
        (prn s))))
 
+(defn write-now [v]
+  (doto *out* (.write v) (.flush)))
+
 (defn property
+  ([check]
+     (property (generator {:for :int}) check))
   ([gen check]
      (property 100 gen check))
   ([count gen check]
-     (dotimes [c count]
-       (assert (check (gen))))))
+     #(dotimes [c count]
+        (let [v (gen)]
+          (try
+           (assert (check v))
+           (write-now ".")
+           (catch Exception _
+             (write-now (str "\n" v "\n")))))
+        )))
+
+(defn is-in? [v vs]
+  (some #{true} (map #(= % v) vs)))
+
+(def elements-property
+     (property (elements #{1 2 3})
+               #(is-in? % #{1 2 3})))
+
+(def one-of-property
+     (property (one-of (elements #{1 2 3})
+                       (elements #{true false}))
+               #(or (is-in? % #{1 2 3})
+                    (is-in? % #{true false}))))
 
 (comment
   (sample
