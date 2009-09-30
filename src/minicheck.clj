@@ -36,12 +36,12 @@
   #(first (filter test-fn (repeatedly gen))))
 
 (defn vector-of [n gen]
-  (take n (repeatedly gen)))
+  #(take n (repeatedly gen)))
 
 (defn list-of [max-size gen]
   (let [length-gen (generator {:for :int
                                :size max-size})]
-    (vector-of (length-gen) gen)))
+    #((vector-of (length-gen) gen))))
 
 (defn sample*
   ([gen]
@@ -56,7 +56,21 @@
      (doseq [s (sample* gen size)]
        (prn s))))
 
+(defn property
+  ([gen check]
+     (property 100 gen check))
+  ([count gen check]
+     (dotimes [c count]
+       (assert (check (gen))))))
+
 (comment
-  (sample #(list-of (generator {:for :int}) 5))
+  (sample
+   (list-of 5 (generator {:for :int})))
   generate a non empty list of ints upto 5 items long
-  (sample (such-that not-empty #(list-of 5 (generator {:for :int})))))
+  (sample
+   (such-that not-empty (list-of 5 (generator {:for :int}))))
+  (sample
+   (one-of [(generator {:for :int}) (generator {:for :bool})]))
+
+  (property (list-of 10 (generator {:for :int}))
+            #(= % (reverse (reverse %)))))
