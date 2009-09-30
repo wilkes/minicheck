@@ -71,8 +71,7 @@
            (assert (check v))
            (write-now ".")
            (catch Exception _
-             (write-now (str "\n" v "\n")))))
-        )))
+             (write-now (str "\n" v "\n"))))))))
 
 (defn is-in? [v vs]
   (some #{true} (map #(= % v) vs)))
@@ -87,14 +86,12 @@
                #(or (is-in? % #{1 2 3})
                     (is-in? % #{true false}))))
 
-(comment
+(defn run-samples []
   (sample
    (list-of 5 (generator {:for :int})))
-  generate a non empty list of ints upto 5 items long
   (sample
    (such-that not-empty (list-of 5 (generator {:for :int}))))
   (sample
-   (one-of [(generator {:for :int}) (generator {:for :bool})]))
-
-  (property (list-of 10 (generator {:for :int}))
-            #(= % (reverse (reverse %)))))
+   (one-of (generator {:for :int}) (generator {:for :bool})))
+  ((property (list-of 10 (generator {:for :int}))
+              #(= % (reverse (reverse %))))))
