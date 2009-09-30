@@ -77,14 +77,35 @@
   (some #{true} (map #(= % v) vs)))
 
 (def elements-property
-     (property (elements #{1 2 3})
-               #(is-in? % #{1 2 3})))
+     (let [vs #{1 2 3}]
+       (property (elements vs)
+                 #(is-in? % vs))))
 
 (def one-of-property
      (property (one-of (elements #{1 2 3})
                        (elements #{true false}))
                #(or (is-in? % #{1 2 3})
                     (is-in? % #{true false}))))
+
+(def such-that-property
+     (property (such-that true? (generator {:for :bool}))
+               true?))
+
+(def vector-of-property
+     (property (vector-of 5 (generator {:for :bool}))
+               #(= 5 (count %))))
+
+(def list-of-property
+     (property (list-of 5 (generator {:for :bool}))
+               #(>= 5 (count %))))
+
+(defn run-properties []
+  (doseq [f [elements-property
+             one-of-property
+             such-that-property
+             vector-of-property
+             list-of-property]]
+    (f)))
 
 (defn run-samples []
   (sample
