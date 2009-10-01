@@ -43,6 +43,10 @@
                                :size max-size})]
     #((vector-of (length-gen) gen))))
 
+(defn choose [low high]
+  (such-that (fn [i] (and (<= low i) (>= high i)))
+             (generator {:for :int :size (inc high)})))
+
 (defn sample*
   ([gen]
      (sample* gen 10))
@@ -61,50 +65,61 @@
 
 (defn property
   ([check]
-     (property (generator {:for :int}) check))
-  ([gen check]
-     (property 100 gen check))
-  ([count gen check]
+     (property [(generator {:for :int})] check))
+  ([gens check]
+     (property 100 gens check))
+  ([count gens check]
      #(dotimes [c count]
-        (let [v (gen)]
+        (let [vs (for [g gens] (g))]
           (try
-           (assert (check v))
+           (assert (apply check vs))
            (write-now ".")
            (catch Exception _
-             (write-now (str "\n" v "\n"))))))))
+             (write-now (str "\n" vs "\n"))))))))
 
 (defn is-in? [v vs]
   (some #{true} (map #(= % v) vs)))
 
 (def elements-property
      (let [vs #{1 2 3}]
-       (property (elements vs)
+       (property [(elements vs)]
                  #(is-in? % vs))))
 
 (def one-of-property
-     (property (one-of (elements #{1 2 3})
-                       (elements #{true false}))
+     (property [(one-of (elements #{1 2 3})
+                         (elements #{true false}))]
                #(or (is-in? % #{1 2 3})
                     (is-in? % #{true false}))))
 
 (def such-that-property
-     (property (such-that true? (generator {:for :bool}))
+     (property [(such-that true? (generator {:for :bool}))]
                true?))
 
 (def vector-of-property
-     (property (vector-of 5 (generator {:for :bool}))
+     (property [(vector-of 5 (generator {:for :bool}))]
                #(= 5 (count %))))
 
 (def list-of-property
-     (property (list-of 5 (generator {:for :bool}))
+     (property [(list-of 5 (generator {:for :bool}))]
                #(>= 5 (count %))))
+
+(def choose-property
+     (property [(choose 1 3)]
+               #(or (>= % 1)
+                    (<= % 3))))
+
+(def multi-arg-property
+     (property 10 [(constantly 1) (constantly 2)]
+               (fn [x y] (and (= x 1) (= y 2)))))
 
 (defn run-properties []
   (doseq [f [elements-property
              one-of-property
              such-that-property
              vector-of-property
-             list-of-property]]
+             list-of-property
+             choose-property
+             multi-arg-property]]
     (f)))
 
 (defn run-samples []
