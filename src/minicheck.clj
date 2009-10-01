@@ -2,27 +2,26 @@
 
 (def *random* (java.util.Random.))
 
-(defmulti  arbitrary :for)
+(defmulti  generate (fn [& args] (first args)))
 
-(defmethod arbitrary :bool     [_] (. *random* nextBoolean))
-(defmethod arbitrary :double   [_] (. *random* nextDouble))
-(defmethod arbitrary :float    [_] (. *random* nextFloat))
-(defmethod arbitrary :gaussian [_] (. *random* nextGaussian))
+(defmethod generate :bool     [_] (. *random* nextBoolean))
+(defmethod generate :double   [_] (. *random* nextDouble))
+(defmethod generate :float    [_] (. *random* nextFloat))
+(defmethod generate :gaussian [_] (. *random* nextGaussian))
 
-(defmethod arbitrary :int
-  [arg-map]
-  (if (:size arg-map)
-    (. *random* nextInt (:size arg-map))
+(defmethod generate :int
+  [_ size]
+  (if size
+    (. *random* nextInt size)
     (. *random* nextInt)))
 
-(defmethod arbitrary :long     [_] (. *random* nextLong))
-(defmethod arbitrary :default  [_] (. *random* nextDouble))
+(defmethod generate :long     [_] (. *random* nextLong))
+(defmethod generate :default  [_] (. *random* nextDouble))
 
-(defn generator [arg-map] #(arbitrary arg-map))
+(defn arbitrary [& args] #(apply generate args))
 
 (defn elements [coll]
-  (let [g (generator {:for :int
-                      :size (count coll)})]
+  (let [g (arbitrary :int (count coll))]
     #(nth (vec coll) (g))))
 
 (defn one-of [& gen-coll]
@@ -39,13 +38,12 @@
   #(take n (repeatedly gen)))
 
 (defn list-of [max-size gen]
-  (let [length-gen (generator {:for :int
-                               :size max-size})]
+  (let [length-gen (arbitrary :int max-size)]
     #((vector-of (length-gen) gen))))
 
 (defn choose [low high]
   (such-that (fn [i] (and (<= low i) (>= high i)))
-             (generator {:for :int :size (inc high)})))
+             (arbitrary :int (inc high))))
 
 (defn sample*
   ([gen]
@@ -65,7 +63,7 @@
 
 (defn property
   ([check]
-     (property [(generator {:for :int})] check))
+     (property [(arbitrary :int)] check))
   ([gens check]
      (property 100 gens check))
   ([count gens check]
@@ -81,32 +79,30 @@
   (some #{true} (map #(= % v) vs)))
 
 (def elements-property
-     (let [vs #{1 2 3}]
-       (property [(elements vs)]
-                 #(is-in? % vs))))
+     (property [(elements [1 2 3])]
+               #(is-in? % [1 2 3])))
 
 (def one-of-property
-     (property [(one-of (elements #{1 2 3})
-                         (elements #{true false}))]
-               #(or (is-in? % #{1 2 3})
-                    (is-in? % #{true false}))))
+     (property [(one-of (elements [1 2 3])
+                         (elements [true false]))]
+               #(or (is-in? % [1 2 3])
+                    (is-in? % [true false]))))
 
 (def such-that-property
-     (property [(such-that true? (generator {:for :bool}))]
+     (property [(such-that true? (arbitrary :bool))]
                true?))
 
 (def vector-of-property
-     (property [(vector-of 5 (generator {:for :bool}))]
-               #(= 5 (count %))))
+     (property [(vector-of 5 (arbitrary :bool))]
+               #(= (count %) 5)))
 
 (def list-of-property
-     (property [(list-of 5 (generator {:for :bool}))]
-               #(>= 5 (count %))))
+     (property [(list-of 5 (arbitrary :bool))]
+               #(<= (count %) 5)))
 
 (def choose-property
      (property [(choose 1 3)]
-               #(or (>= % 1)
-                    (<= % 3))))
+               #(and (>= % 1) (<= % 3))))
 
 (def multi-arg-property
      (property 10 [(constantly 1) (constantly 2)]
@@ -124,10 +120,10 @@
 
 (defn run-samples []
   (sample
-   (list-of 5 (generator {:for :int})))
+   (list-of 5 (arbitrary :int)))
   (sample
-   (such-that not-empty (list-of 5 (generator {:for :int}))))
+   (such-that not-empty (list-of 5 (arbitrary :int))))
   (sample
-   (one-of (generator {:for :int}) (generator {:for :bool})))
-  ((property (list-of 10 (generator {:for :int}))
+   (one-of (arbitrary :int) (arbitrary :bool)))
+  ((property (list-of 10 (arbitrary :int))
               #(= % (reverse (reverse %))))))
