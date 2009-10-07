@@ -4,8 +4,8 @@ Example:
 
 (use 'minicheck)
 
-(defmethod generate ::list [_ max-size type]
-  ((list-of size (arbitrary type))))
+(defmethod arbitrary ::list [_ max-size type]
+  (list-of max-size (arbitrary type)))
 
 (defprop sort-is-idempotent
     [xs (arbitrary ::list 10 :int)]

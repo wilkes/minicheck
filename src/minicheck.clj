@@ -3,23 +3,21 @@
 (def *random* (java.util.Random.))
 (def *all-properties* (atom []))
 
-(defmulti  generate (fn [& args] (first args)))
+(defmulti  arbitrary (fn [& args] (first args)))
 
-(defmethod generate :bool     [_] (. *random* nextBoolean))
-(defmethod generate :double   [_] (. *random* nextDouble))
-(defmethod generate :float    [_] (. *random* nextFloat))
-(defmethod generate :gaussian [_] (. *random* nextGaussian))
+(defmethod arbitrary :bool     [_] #(. *random* nextBoolean))
+(defmethod arbitrary :double   [_] #(. *random* nextDouble))
+(defmethod arbitrary :float    [_] #(. *random* nextFloat))
+(defmethod arbitrary :gaussian [_] #(. *random* nextGaussian))
 
-(defmethod generate :int
+(defmethod arbitrary :int
   [_ & [size]]
   (if size
-    (. *random* nextInt size)
-    (. *random* nextInt)))
+    #(. *random* nextInt size)
+    #(. *random* nextInt)))
 
-(defmethod generate :long     [_] (. *random* nextLong))
-(defmethod generate :default  [_] (. *random* nextDouble))
-
-(defn arbitrary [& args] #(apply generate args))
+(defmethod arbitrary :long     [_] #(. *random* nextLong))
+(defmethod arbitrary :default  [_] #(. *random* nextDouble))
 
 (defn elements [coll]
   (let [g (arbitrary :int (count coll))]
@@ -62,6 +60,13 @@
 (defn write-now [v]
   (doto *out* (.write v) (.flush)))
 
+(defn write-value [vs]
+  (write-now "\n")
+  (if (seq? vs)
+    (doseq [v vs]
+      (write-now (str "<" v ">")))
+    (write-now (str vs))))
+
 (defn property
   ([check]
      (property [(arbitrary :int)] check))
@@ -75,7 +80,7 @@
              (assert (apply check vs))
              (write-now ".")
              (catch Exception _
-               (write-now (str "\n" vs "\n")))))))))
+               (write-value vs))))))))
 
 (defmacro defprop [name gen-bindings & body]
   (let [vars (map first (partition 2 gen-bindings))
@@ -86,6 +91,13 @@
                       (fn [~@vars]
                         ~@body)))
        (swap! *all-properties* conj ~name))))
+
+
+(defn run-all-properties [& [n]]
+  (doseq [f @*all-properties*] (f (if n n 100))))
+
+(defn reset-all-properties []
+  (reset! *all-properties* []))
 
 (defn is-in? [v vs]
   (some #{true} (map #(= % v) vs)))
@@ -120,7 +132,3 @@
     [x (constantly 1)
      y (constantly 2)]
   (and (= x 1) (= y 2)))
-
-(defn run-all-properties [& [n]]
-  (doseq [f @*all-properties*] (f (if n n 100))))
-

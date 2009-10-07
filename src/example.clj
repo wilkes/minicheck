@@ -1,6 +1,9 @@
 (use 'minicheck)
 
-(defmethod generate ::list [_ size type] ((list-of size (arbitrary type))))
+(reset-all-properties)
+
+(defmethod arbitrary ::list [_ size type]
+  (list-of size (arbitrary type)))
 
 (defprop sort-is-idempotent
     [xs (arbitrary ::list 10 :int)]
