@@ -14,3 +14,8 @@ Example:
 (defprop sort-min-first
     [xs (such-that not-empty (arbitrary ::list 10 :int))]
   (= (first (sort xs)) (apply min xs)))
+
+(run-all-properties)  ;; run all properties
+(run-all-properties 10)  ;; run all properties, 10 times each
+(sort-min-first) ;; run a specific property
+(sort-min-first 1000) ;; run a specific property 1000 times
