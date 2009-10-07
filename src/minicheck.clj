@@ -1,6 +1,7 @@
 (ns minicheck)
 
 (def *random* (java.util.Random.))
+(def *all-properties* (atom []))
 
 (defmulti  generate (fn [& args] (first args)))
 
@@ -10,7 +11,7 @@
 (defmethod generate :gaussian [_] (. *random* nextGaussian))
 
 (defmethod generate :int
-  [_ size]
+  [_ & [size]]
   (if size
     (. *random* nextInt size)
     (. *random* nextInt)))
@@ -67,63 +68,59 @@
   ([gens check]
      (property 100 gens check))
   ([count gens check]
-     #(dotimes [c count]
-        (let [vs (for [g gens] (g))]
-          (try
-           (assert (apply check vs))
-           (write-now ".")
-           (catch Exception _
-             (write-now (str "\n" vs "\n"))))))))
+     (fn [& [n]]
+       (dotimes [c (if n n count)]
+          (let [vs (for [g gens] (g))]
+            (try
+             (assert (apply check vs))
+             (write-now ".")
+             (catch Exception _
+               (write-now (str "\n" vs "\n")))))))))
+
+(defmacro defprop [name gen-bindings & body]
+  (let [vars (map first (partition 2 gen-bindings))
+        gens (map second (partition 2 gen-bindings))]
+    `(do
+       (def ~name
+            (property [~@gens]
+                      (fn [~@vars]
+                        ~@body)))
+       (swap! *all-properties* conj ~name))))
 
 (defn is-in? [v vs]
   (some #{true} (map #(= % v) vs)))
 
-(def elements-property
-     (property [(elements [1 2 3])]
-               #(is-in? % [1 2 3])))
+(defprop elements-property
+    [x (elements [1 2 3])]
+  (is-in? x [1 2 3]))
 
-(def one-of-property
-     (property [(one-of (elements [1 2 3])
-                         (elements [true false]))]
-               #(or (is-in? % [1 2 3])
-                    (is-in? % [true false]))))
+(defprop one-of-property
+    [x (one-of (elements [1 2 3])
+             (elements [true false]))]
+  (or (is-in? x [1 2 3])
+      (is-in? x [true false])))
 
-(def such-that-property
-     (property [(such-that true? (arbitrary :bool))]
-               true?))
+(defprop such-that-property
+    [b (such-that true? (arbitrary :bool))]
+  (true? b))
 
-(def vector-of-property
-     (property [(vector-of 5 (arbitrary :bool))]
-               #(= (count %) 5)))
+(defprop vector-of-property
+    [xs (vector-of 5 (arbitrary :bool))]
+  (= (count xs) 5))
 
-(def list-of-property
-     (property [(list-of 5 (arbitrary :bool))]
-               #(<= (count %) 5)))
+(defprop list-of-property
+    [xs (list-of 5 (arbitrary :bool))]
+  (<= (count xs) 5))
 
-(def choose-property
-     (property [(choose 1 3)]
-               #(and (>= % 1) (<= % 3))))
+(defprop choose-property
+    [x (choose 1 3)]
+  (and (>= x 1) (<= x 3)))
 
-(def multi-arg-property
-     (property 10 [(constantly 1) (constantly 2)]
-               (fn [x y] (and (= x 1) (= y 2)))))
+(defprop multi-arg-property
+    [x (constantly 1)
+     y (constantly 2)]
+  (and (= x 1) (= y 2)))
 
-(defn run-properties []
-  (doseq [f [elements-property
-             one-of-property
-             such-that-property
-             vector-of-property
-             list-of-property
-             choose-property
-             multi-arg-property]]
-    (f)))
+(defn run-all-properties [& [n]]
+  (doseq [f @*all-properties*] (f (if n n 100))))
 
-(defn run-samples []
-  (sample
-   (list-of 5 (arbitrary :int)))
-  (sample
-   (such-that not-empty (list-of 5 (arbitrary :int))))
-  (sample
-   (one-of (arbitrary :int) (arbitrary :bool)))
-  ((property (list-of 10 (arbitrary :int))
-              #(= % (reverse (reverse %))))))
