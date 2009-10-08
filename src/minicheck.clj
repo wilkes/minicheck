@@ -81,7 +81,7 @@
     (do (write-now "[")
         (doseq [v vs] (write-value v))
         (write-now "]"))
-    (write-now (str vs " "))))
+    (write-now (apply str (interpose " " vs)))))
 
 (defn property
   "Low-level property maker. Use the defprop macro instead."
