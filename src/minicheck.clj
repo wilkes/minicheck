@@ -61,33 +61,36 @@
   (doto *out* (.write v) (.flush)))
 
 (defn write-value [vs]
-  (write-now "\n")
   (if (seq? vs)
-    (doseq [v vs]
-      (write-now (str "<" v ">")))
-    (write-now (str vs))))
+    (do (write-now "[")
+        (doseq [v vs] (write-value v))
+        (write-now "]"))
+    (write-now (str vs " "))))
 
 (defn property
-  ([check]
-     (property [(arbitrary :int)] check))
-  ([gens check]
-     (property 100 gens check))
-  ([count gens check]
+  ([name check]
+     (property name [(arbitrary :int)] check))
+  ([name gens check]
+     (property name 100 gens check))
+  ([name count gens check]
      (fn [& [n]]
+       (write-now (str name ":\n"))
        (dotimes [c (if n n count)]
           (let [vs (for [g gens] (g))]
             (try
-             (assert (apply check vs))
              (write-now ".")
-             (catch Exception _
-               (write-value vs))))))))
+             (assert (apply check vs))
+             (catch Exception e
+               (write-value vs)
+               (throw e)))))
+       (write-now "\n"))))
 
 (defmacro defprop [name gen-bindings & body]
   (let [vars (map first (partition 2 gen-bindings))
         gens (map second (partition 2 gen-bindings))]
     `(do
        (def ~name
-            (property [~@gens]
+            (property ~(str name) [~@gens]
                       (fn [~@vars]
                         ~@body)))
        (swap! *all-properties* conj ~name))))
