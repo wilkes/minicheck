@@ -96,14 +96,14 @@
        (prn s))))
 
 (defn write-now [v]
-  (doto *out* (.write v) (.flush)))
+  (doto *out* (.write (str v)) (.flush)))
 
 (defn write-value [vs]
   (if (seq? vs)
     (do (write-now "[")
-        (doseq [v vs] (write-value v))
+        (doseq [v (interpose " " vs)] (write-value v))
         (write-now "]"))
-    (write-now (apply str (interpose " " vs)))))
+    (write-now vs)))
 
 (defn property
   "Low-level property maker. Use the defprop macro instead."
@@ -121,6 +121,7 @@
              (assert (apply check vs))
              (catch Exception e
                (write-value vs)
+               (write-now "\n")
                (throw e)))))
        (write-now "\n"))))
 
