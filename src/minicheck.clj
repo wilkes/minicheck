@@ -105,31 +105,27 @@
         (write-now "]"))
     (write-now vs)))
 
-(defn write-failure [vs check]
+(defn write-failure [vs form]
   (write-now "\n")
-  (write-now (str (:form (meta check))))
+  (write-now (str form))
   (write-now (str " failed with args "))
   (write-value vs)
   (write-now "\n"))
 
 (defn property
   "Low-level property maker. Use the defprop macro instead."
-  ([name check]
-     (property name [(arbitrary :int)] check))
-  ([name gens check]
-     (property name 100 gens check))
-  ([name count gens check]
-     (fn [& [n]]
-       (write-now (str name ":\n"))
-       (dotimes [c (if n n count)]
-          (let [vs (for [g gens] (g))]
-            (try
-             (write-now ".")
-             (assert (apply check vs))
-             (catch Exception e
-               (write-failure vs check)
-               (throw e)))))
-       (write-now "\n"))))
+  [name gens check form]
+  (fn [& [n]]
+    (write-now (str name ":\n"))
+    (dotimes [c (if n n 100)]
+      (let [vs (for [g gens] (g))]
+        (try
+         (write-now ".")
+         (assert (apply check vs))
+         (catch Exception e
+           (write-failure vs form)
+           (throw e)))))
+       (write-now "\n")))
 
 (defmacro defprop
   "Creates a new property and adds it to the *all-properties* collection"
@@ -137,9 +133,10 @@
   (let [vars (map first (partition 2 gen-bindings))
         gens (map second (partition 2 gen-bindings))]
     `(do
-       (def #^{:form (quote ~@body)} f# (fn [~@vars] ~@body))
        (def ~name
-            (property ~(str name) [~@gens] (var f#)))
+            (property ~(str name) [~@gens]
+                      (fn [~@vars] ~@body)
+                      (quote ~@body)))
        (swap! *all-properties* conj ~name))))
 
 
