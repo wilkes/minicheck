@@ -105,6 +105,13 @@
         (write-now "]"))
     (write-now vs)))
 
+(defn write-failure [vs check]
+  (write-now "\n")
+  (write-now (str (:form (meta check))))
+  (write-now (str " failed with args "))
+  (write-value vs)
+  (write-now "\n"))
+
 (defn property
   "Low-level property maker. Use the defprop macro instead."
   ([name check]
@@ -120,8 +127,7 @@
              (write-now ".")
              (assert (apply check vs))
              (catch Exception e
-               (write-value vs)
-               (write-now "\n")
+               (write-failure vs check)
                (throw e)))))
        (write-now "\n"))))
 
@@ -131,10 +137,9 @@
   (let [vars (map first (partition 2 gen-bindings))
         gens (map second (partition 2 gen-bindings))]
     `(do
+       (def #^{:form (quote ~@body)} f# (fn [~@vars] ~@body))
        (def ~name
-            (property ~(str name) [~@gens]
-                      (fn [~@vars]
-                        ~@body)))
+            (property ~(str name) [~@gens] (var f#)))
        (swap! *all-properties* conj ~name))))
 
 
