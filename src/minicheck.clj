@@ -41,7 +41,6 @@
     #(. *random* nextInt)))
 
 (defmethod arbitrary :long     [_] #(. *random* nextLong))
-(defmethod arbitrary :default  [_] #(. *random* nextDouble))
 
 (defn elements
   "Creates a generator that will return a random item from the supplied collection."
@@ -79,6 +78,30 @@
   [low high]
   (such-that (fn [i] (and (<= low i) (>= high i)))
              (arbitrary :int (inc high))))
+
+(defmethod arbitrary :character [_ & [low high]]
+  (let [low  (if low low 32)
+        high (if high high 127)  ;; default to basic Latin characters
+        int-gen (choose low high)]
+    #(char (int-gen))))
+
+(defmethod arbitrary :alpha-lower [_]
+  (arbitrary :character (int \a) (int \z)))
+
+(defmethod arbitrary :alpha-upper [_]
+  (arbitrary :character (int \A) (int \Z)))
+
+(defmethod arbitrary :number-char [_]
+  (arbitrary :character (int \0) (int \9)))
+
+(defmethod arbitrary :alphanumeric [_]
+  (one-of (arbitrary :alpha-lower)
+          (arbitrary :alpha-upper)
+          (arbitrary :number-char)))
+
+(defmethod arbitrary :alphanumeric-string [_ & [size]]
+  #(apply str ((list-of (if size size 16)
+                        (arbitrary :alphanumeric)))))
 
 (defn sample*
   "Returns a lazy sequence of n runs of the supplied generator (defaults 10)"
