@@ -62,16 +62,18 @@
   [test-fn gen]
   #(first (filter test-fn (repeatedly gen))))
 
-(defn vector-of
-  "Creates a generator that will return a list of n values from the supplied generator"
-  [n gen]
-  #(take n (repeatedly gen)))
-
-(defn list-of
-  "Creates a generator that will return a list of at most n values from the supplied generator"
-  [max-size gen]
-  (let [length-gen (arbitrary :int max-size)]
-    #((vector-of (length-gen) gen))))
+(defn seq-of
+  "Creates a generator that will return a seq of values from the supplied generator.  Options:
+:exactly - to specify that the seq always be of the same size
+:min - defaults to 0, ignored if :exactly is supplied
+:max - defaults to 100, ignored if :exactly is supplied "
+  [gen & options]
+  (let [defaults {:min 0 :max 100}
+        options (merge defaults (apply hash-map options))
+        size-gen (if (options :exactly)
+                   (constantly (options :exactly))
+                   (choose (options :min) (options :max)))]
+    #(take (size-gen) (repeatedly gen))))
 
 (defn choose
   "Creates a generator that will return an int within the given range (inclusive)"
@@ -85,23 +87,22 @@
         int-gen (choose low high)]
     #(char (int-gen))))
 
-(defmethod arbitrary :alpha-lower [_]
+(defmethod arbitrary :alpha-lower-char [_]
   (arbitrary :character (int \a) (int \z)))
 
-(defmethod arbitrary :alpha-upper [_]
+(defmethod arbitrary :alpha-upper-char [_]
   (arbitrary :character (int \A) (int \Z)))
 
-(defmethod arbitrary :number-char [_]
+(defmethod arbitrary :numeric-char [_]
   (arbitrary :character (int \0) (int \9)))
 
-(defmethod arbitrary :alphanumeric [_]
-  (one-of (arbitrary :alpha-lower)
-          (arbitrary :alpha-upper)
-          (arbitrary :number-char)))
+(defmethod arbitrary :alphanumeric-char [_]
+  (one-of (arbitrary :alpha-lower-char)
+          (arbitrary :alpha-upper-char)
+          (arbitrary :numeric-char)))
 
-(defmethod arbitrary :alphanumeric-string [_ & [size]]
-  #(apply str ((list-of (if size size 16)
-                        (arbitrary :alphanumeric)))))
+(defmethod arbitrary :string [_ characters-gen]
+  #(apply str (characters-gen)))
 
 (defn sample*
   "Returns a lazy sequence of n runs of the supplied generator (defaults 10)"
@@ -162,6 +163,8 @@
                       (quote ~@body)))
        (swap! *all-properties* conj ~name))))
 
+(defmacro gen [& params]
+  `((arbitrary ~@params)))
 
 (defn run-all-properties
   "Runs each the property in the *all-properties* n times (default 100)"
