@@ -21,6 +21,7 @@ Installing with Leiningen
         if [ "$1" = "minicheck" ]; then
             CLASSPATH=check/:$CLASSPATH
         fi
+   This needs to be placed before the JVM launches as noted in the lein script.
 1. Modify your project's project.clj to minicheck and lein-minicheck
         (defproject your-project "0.0.0-SNAPSHOT"
           :dependencies [[org.clojure/clojure "1.1.0-alpha-SNAPSHOT"]
