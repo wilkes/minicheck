@@ -2,33 +2,34 @@
   (:use minicheck))
 
 (defprop elements-property
-    [x (elements [1 2 3])]
+    [x (arbitrary :elements [1 2 3])]
   (is-in? x [1 2 3]))
 
 (defprop one-of-property
-    [x (one-of (elements [1 2 3])
-             (elements [true false]))]
+    [x (arbitrary :one-of
+                  (elements [1 2 3])
+                  (elements [true false]))]
   (or (is-in? x [1 2 3])
       (is-in? x [true false])))
 
 (defprop such-that-property
-    [b (such-that true? (arbitrary :bool))]
+    [b (arbitrary :such-that true? (arbitrary :bool))]
   (true? b))
 
 (defprop seq-of-exactly-property
-    [xs (seq-of (arbitrary :bool) :exactly 5)]
+    [xs (arbitrary :seq-of (arbitrary :bool) :exactly 5)]
   (= (count xs) 5))
 
 (defprop seq-of-max-property
-    [xs (seq-of (arbitrary :bool) :max 5)]
+    [xs (arbitrary :seq-of (arbitrary :bool) :max 5)]
   (<= (count xs) 5))
 
 (defprop seq-of-min-property
-    [xs (seq-of (arbitrary :bool) :min 5)]
+    [xs (arbitrary :seq-of (arbitrary :bool) :min 5)]
   (>= (count xs) 5))
 
 (defprop choose-property
-    [x (choose 1 3)]
+    [x (arbitrary :choose 1 3)]
   (and (>= x 1) (<= x 3)))
 
 (defprop multi-arg-property

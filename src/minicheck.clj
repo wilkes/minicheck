@@ -81,6 +81,23 @@
                    (choose (options :min) (options :max)))]
     #(take (size-gen) (repeatedly gen))))
 
+;; These are so that you can call the gen macro for the arbitrary
+;; combinators
+(defmethod arbitrary :elements [_ & [coll]]
+  (elements coll))
+
+(defmethod arbitrary :one-of [_ & gen-coll]
+  (apply one-of gen-coll))
+
+(defmethod arbitrary :such-that [_ & [test-fn gen]]
+  (such-that test-fn gen))
+
+(defmethod arbitrary :choose [_ & [low high]]
+  (choose low high))
+
+(defmethod arbitrary :seq-of [_ & options]
+  (apply seq-of options))
+
 (defmethod arbitrary :character [_ & [low high]]
   (let [low  (if low low 32)
         high (if high high 127)  ;; default to basic Latin characters
