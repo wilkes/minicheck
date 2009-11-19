@@ -1,6 +1,10 @@
 Minicheck
 ====
 
+Minicheck is an implementation of QuickCheck in clojure.
+
+Refer to the [example](http://github.com/wilkes/minicheck/blob/master/src/example.clj) which is a port of the quicksort example from [Chapter 11 of Real World Haskell](http://book.realworldhaskell.org/read/testing-and-quality-assurance.html)
+
 Install
 -------
 1. Copy minicheck.clj into your project
