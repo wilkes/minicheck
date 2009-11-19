@@ -1,7 +1,5 @@
-(ns minicheck.checks
+(ns check-minicheck
   (:use minicheck))
-
-(reset-all-properties)
 
 (defprop elements-property
     [x (elements [1 2 3])]
@@ -60,5 +58,3 @@
                (in-range? (int %) (int \a) (int \z))
                (in-range? (int %) (int \A) (int \Z)))
           s))
-
-(run-all-properties)

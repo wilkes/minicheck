@@ -6,7 +6,7 @@
 ;; http://book.realworldhaskell.org/read/testing-and-quality-assurance.html
 
 (defmethod arbitrary ::list [_]
-  (list-of 10 (arbitrary :int)))
+  (seq-of (arbitrary :int) :exactly 10))
 
 (defprop sort-is-idempotent
     [xs (arbitrary ::list)]

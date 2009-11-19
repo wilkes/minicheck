@@ -1,3 +1,6 @@
 .DS_Store
 dist/
 lib/
+classes/
+*.jar
+pom.xml

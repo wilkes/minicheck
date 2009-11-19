@@ -62,6 +62,12 @@
   [test-fn gen]
   #(first (filter test-fn (repeatedly gen))))
 
+(defn choose
+  "Creates a generator that will return an int within the given range (inclusive)"
+  [low high]
+  (such-that (fn [i] (and (<= low i) (>= high i)))
+             (arbitrary :int (inc high))))
+
 (defn seq-of
   "Creates a generator that will return a seq of values from the supplied generator.  Options:
 :exactly - to specify that the seq always be of the same size
@@ -74,12 +80,6 @@
                    (constantly (options :exactly))
                    (choose (options :min) (options :max)))]
     #(take (size-gen) (repeatedly gen))))
-
-(defn choose
-  "Creates a generator that will return an int within the given range (inclusive)"
-  [low high]
-  (such-that (fn [i] (and (<= low i) (>= high i)))
-             (arbitrary :int (inc high))))
 
 (defmethod arbitrary :character [_ & [low high]]
   (let [low  (if low low 32)
