@@ -12,14 +12,10 @@ Install
 Installing with Leiningen
 ----------
 1. Install [leiningen](http://github.com/technomancy/leiningen)
-1. Install minicheck
-        lein compile && lein install
-1. Install lein-minicheck
-        cd lein-minicheck/
-        lein deps && lein compile && lein install   
+1. Run bin/install.sh
 1. Add the following to your lein script
         if [ "$1" = "minicheck" ]; then
-            CLASSPATH=check/:$CLASSPATH
+            CLASSPATH=checks/:$CLASSPATH
         fi
    This needs to be placed before the JVM launches as noted in the lein script.
 1. Modify your project's project.clj to minicheck and lein-minicheck
@@ -28,7 +24,7 @@ Installing with Leiningen
                          [org.clojure/clojure-contrib "1.0-SNAPSHOT"]]
           :dev-dependencies [[minicheck "0.0.0-SNAPSHOT"]
                              [lein-minicheck "0.0.0-SNAPSHOT"]])
-1. Place your checks in a check/ folder in your project
+1. Place your checks in a checks/ folder in your project
 1. Run with:
         lein minicheck
 

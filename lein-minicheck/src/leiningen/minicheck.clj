@@ -5,6 +5,6 @@
 
 (defn minicheck [project & args]
   (reset-all-properties)
-  (doseq [n (find-namespaces-in-dir (file (project :root) "check"))]
+  (doseq [n (find-namespaces-in-dir (file (project :root) "checks"))]
     (require n))
   (run-all-properties))
