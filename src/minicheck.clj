@@ -26,7 +26,7 @@
 (def *all-properties* (atom []))
 
 (defmulti arbitrary
-  "Returns a generator function that will return arbitrary data."
+  "Returns a function that will return arbitrary data."
   (fn [& args] (first args)))
 
 (defmethod arbitrary :bool     [_] #(. *random* nextBoolean))
@@ -43,54 +43,56 @@
 (defmethod arbitrary :long     [_] #(. *random* nextLong))
 
 (defn elements
-  "Creates a generator that will return a random item from the supplied collection."
+  "Arbitrary combinator that will return a random item from the supplied collection."
   [coll]
   (let [g (arbitrary :int (count coll))]
     #(nth (vec coll) (g))))
 
 (defn one-of
-  "Creates a generator that will randomly use on of the supplied generators"
-  [& gen-coll]
-  (let [gens (elements gen-coll)]
+  "Arbitrary combinator that will randomly use on of the supplied arbitrar"
+  [& arb-coll]
+  (let [arbs (elements arb-coll)]
     ;; nested the function to make the unwrapping a bit more clear
     (fn []
-      (let [g (gens)]
+      (let [g (arbs)]
         (g)))))
 
 (defn such-that
-  "Creates a generator that will return a value satisfying the supplied test function"
-  [test-fn gen]
-  #(first (filter test-fn (repeatedly gen))))
+  "Arbitrary combinator that will return a value satisfying the supplied test function"
+  [test-fn arb]
+  #(first (filter test-fn (repeatedly arb))))
 
 (defn choose
-  "Creates a generator that will return an int within the given range (inclusive)"
+  "Arbitrary combinator that will return an int within the given range (inclusive)"
   [low high]
   (such-that (fn [i] (and (<= low i) (>= high i)))
              (arbitrary :int (inc high))))
 
 (defn seq-of
-  "Creates a generator that will return a seq of values from the supplied generator.  Options:
+  "Arbitrary combinator that will return a seq of values from the supplied arbitrary.  Options:
 :exactly - to specify that the seq always be of the same size
 :min - defaults to 0, ignored if :exactly is supplied
 :max - defaults to 100, ignored if :exactly is supplied "
-  [gen & options]
+  [arb & options]
   (let [defaults {:min 0 :max 100}
         options (merge defaults (apply hash-map options))
-        size-gen (if (options :exactly)
+        arb-size (if (options :exactly)
                    (constantly (options :exactly))
                    (choose (options :min) (options :max)))]
-    #(take (size-gen) (repeatedly gen))))
+    #(take (arb-size) (repeatedly arb))))
 
-;; These are so that you can call the gen macro for the arbitrary
-;; combinators
+
+;; These exist for consistency and so that you can call the gen macro
+;; for the arbitrary combinators
+
 (defmethod arbitrary :elements [_ & [coll]]
   (elements coll))
 
 (defmethod arbitrary :one-of [_ & gen-coll]
   (apply one-of gen-coll))
 
-(defmethod arbitrary :such-that [_ & [test-fn gen]]
-  (such-that test-fn gen))
+(defmethod arbitrary :such-that [_ & [test-fn arb]]
+  (such-that test-fn arb))
 
 (defmethod arbitrary :choose [_ & [low high]]
   (choose low high))
@@ -98,11 +100,14 @@
 (defmethod arbitrary :seq-of [_ & options]
   (apply seq-of options))
 
+
+;; Character and string arbitraries
+
 (defmethod arbitrary :character [_ & [low high]]
   (let [low  (if low low 32)
         high (if high high 127)  ;; default to basic Latin characters
-        int-gen (choose low high)]
-    #(char (int-gen))))
+        arb-int (choose low high)]
+    #(char (arb-int))))
 
 (defmethod arbitrary :alpha-lower-char [_]
   (arbitrary :character (int \a) (int \z)))
@@ -118,22 +123,22 @@
           (arbitrary :alpha-upper-char)
           (arbitrary :numeric-char)))
 
-(defmethod arbitrary :string [_ characters-gen]
-  #(apply str (characters-gen)))
+(defmethod arbitrary :string [_ arb-characters]
+  #(apply str (arb-characters)))
 
 (defn sample*
-  "Returns a lazy sequence of n runs of the supplied generator (defaults 10)"
-  ([gen]
-     (sample* gen 10))
-  ([gen n]
-     (take n (repeatedly gen))))
+  "Returns a lazy sequence of n runs of the supplied arbitrary (defaults 10)"
+  ([arb]
+     (sample* arb 10))
+  ([arb n]
+     (take n (repeatedly arb))))
 
 (defn sample
-    "Prints to *out* n runs of the supplied generator (defaults 10)"
-  ([gen]
-     (sample gen 10))
-  ([gen size]
-     (doseq [s (sample* gen size)]
+    "Prints to *out* n runs of the supplied arbitrary (defaults 10)"
+  ([arb]
+     (sample arb 10))
+  ([arb size]
+     (doseq [s (sample* arb size)]
        (prn s))))
 
 (defn write-now [v]
@@ -155,11 +160,11 @@
 
 (defn property
   "Low-level property maker. Use the defprop macro instead."
-  [name gens check form]
+  [name arbs check form]
   (fn [& [n]]
     (write-now (str name ":\n"))
     (dotimes [c (if n n 100)]
-      (let [vs (for [g gens] (g))]
+      (let [vs (for [g arbs] (g))]
         (try
          (write-now ".")
          (assert (apply check vs))
@@ -170,12 +175,13 @@
 
 (defmacro defprop
   "Creates a new property and adds it to the *all-properties* collection"
-  [name gen-bindings & body]
-  (let [vars (map first (partition 2 gen-bindings))
-        gens (map second (partition 2 gen-bindings))]
+  [name arb-bindings & body]
+  (let [arb-map (apply sorted-map arb-bindings)
+        vars (keys arb-map)
+        arbs (vals arb-map)]
     `(do
        (def ~name
-            (property ~(str name) [~@gens]
+            (property ~(str name) [~@arbs]
                       (fn [~@vars] ~@body)
                       (quote ~@body)))
        (swap! *all-properties* conj ~name))))
