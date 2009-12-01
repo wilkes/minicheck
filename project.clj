@@ -1,3 +1,4 @@
-(defproject minicheck "0.2.0-SNAPSHOT"
-  :dev-dependencies [[lein-minicheck "0.2.0-SNAPSHOT"]
+(defproject minicheck "0.2.0"
+  :dependencies [[org.clojure/clojure "1.1.0-alpha-SNAPSHOT"]]
+  :dev-dependencies [[lein-minicheck "0.2.0"]
                      [lein-clojars "0.5.0-SNAPSHOT"]])
