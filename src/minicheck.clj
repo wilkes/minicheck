@@ -20,7 +20,8 @@
 ;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ;; THE SOFTWARE.
 
-(ns minicheck)
+(ns minicheck
+  (:require [clojure.test :as test]))
 
 (def *random* (java.util.Random.))
 (def *all-properties* (atom []))
@@ -141,65 +142,27 @@
      (doseq [s (sample* arb size)]
        (prn s))))
 
-(defn write-now [v]
-  (doto *out* (.write (str v)) (.flush)))
-
-(defn write-value [vs]
-  (if (seq? vs)
-    (do (write-now "[")
-        (doseq [v (interpose " " vs)] (write-value v))
-        (write-now "]"))
-    (write-now vs)))
-
-(defn write-failure [vs form]
-  (write-now "\n")
-  (write-now (str form))
-  (write-now (str " failed with args "))
-  (write-value vs)
-  (write-now "\n"))
-
-(defn property
-  "Low-level property maker. Use the defprop macro instead."
-  [name arbs check form]
-  (fn [& [n]]
-    (write-now (str name ":\n"))
-    (dotimes [c (if n n 100)]
-      (let [vs (for [g arbs] (g))]
-        (try
-         (write-now ".")
-         (assert (apply check vs))
-         (catch Exception e
-           (write-failure vs form)
-           (throw e)))))
-       (write-now "\n")))
-
-(defmacro defprop
-  "Creates a new property and adds it to the *all-properties* collection"
-  [name arb-bindings & body]
-  (let [arb-map (apply sorted-map arb-bindings)
-        vars (keys arb-map)
-        arbs (vals arb-map)]
-    `(do
-       (def ~name
-            (property ~(str name) [~@arbs]
-                      (fn [~@vars] ~@body)
-                      (quote ~@body)))
-       (swap! *all-properties* conj ~name))))
-
 (defmacro gen [& params]
   `((arbitrary ~@params)))
-
-(defn run-all-properties
-  "Runs each the property in the *all-properties* n times (default 100)"
-  [& [n]]
-  (doseq [f @*all-properties*] (f (if n n 100))))
-
-(defn reset-all-properties
-  "Clears out the *all-properties* collection."
-  []
-  (reset! *all-properties* []))
 
 (defn is-in?
   "Does a linear search to test for membership in a seq"
   [v vs]
   (some #{true} (map #(= % v) vs)))
+
+(def *test-run-count* 100)
+(defmacro defcheck [name arb-bindings & body]
+    (let [arb-map (apply sorted-map arb-bindings)
+          vars (keys arb-map)
+          arbs (vals arb-map)]
+      (when test/*load-tests*
+        `(def ~(vary-meta name assoc :test
+                          `(fn []
+                             (let [check# (fn [~@vars] ~@body)]
+                               (dotimes [c# *test-run-count*]
+                                 (let [vs# (for [g# [~@arbs]] (g#))]
+                                   (apply check# vs#))))))
+              (fn [] (test/test-var (var ~name)))))))
+
+(defn run-times [n prop]
+  (binding [*test-run-count* n] (prop)))
