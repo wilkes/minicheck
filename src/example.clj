@@ -26,7 +26,7 @@
     (is (ordered? (sort xs))))
 
 (defn seq-diff [xs ys]
-  (filter #(not (is-in? % xs)) ys))
+  (remove #(is-in? % xs) ys))
 
 (defn permuation? [xs ys]
   (and
