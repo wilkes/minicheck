@@ -21,10 +21,9 @@
 ;; THE SOFTWARE.
 
 (ns minicheck
-  (:require [clojure.test :as test]))
+  (:use clojure.test))
 
 (def *random* (java.util.Random.))
-(def *all-properties* (atom []))
 
 (defmulti arbitrary
   "Returns a function that will return arbitrary data."
@@ -127,6 +126,7 @@
 (defmethod arbitrary :string [_ arb-characters]
   #(apply str (arb-characters)))
 
+
 (defn sample*
   "Returns a lazy sequence of n runs of the supplied arbitrary (defaults 10)"
   ([arb]
@@ -151,18 +151,21 @@
   (some #{true} (map #(= % v) vs)))
 
 (def *test-run-count* 100)
-(defmacro defcheck [name arb-bindings & body]
-    (let [arb-map (apply sorted-map arb-bindings)
-          vars (keys arb-map)
-          arbs (vals arb-map)]
-      (when test/*load-tests*
-        `(def ~(vary-meta name assoc :test
-                          `(fn []
-                             (let [check# (fn [~@vars] ~@body)]
-                               (dotimes [c# *test-run-count*]
-                                 (let [vs# (for [g# [~@arbs]] (g#))]
-                                   (apply check# vs#))))))
-              (fn [] (test/test-var (var ~name)))))))
 
-(defn run-times [n prop]
+(defn with-run-count [n prop]
   (binding [*test-run-count* n] (prop)))
+
+(defn run-property [check-fn arbs]
+  (doseq [pass? (take *test-run-count* (repeatedly #(apply check-fn (for [g arbs] (g)))))
+          :while pass?]
+    (print ".")))
+
+(defmacro defcheck [name arb-bindings & body]
+  (let [arb-map (apply sorted-map arb-bindings)
+        vars (keys arb-map)
+        arbs (vals arb-map)]
+    (when *load-tests*
+      `(def ~(vary-meta name assoc :test
+                        `#(run-property (fn [~@vars] ~@body)
+                                        [~@arbs]))
+            #(test-var (var ~name))))))
