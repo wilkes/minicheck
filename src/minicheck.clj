@@ -156,13 +156,13 @@
   (binding [*test-run-count* n] (prop)))
 
 (defmacro defcheck [name & args]
-  (let [pre (:pre (first args))
-        [arb-bindings body] (if pre
+  (let [before (:before (first args))
+        [arb-bindings body] (if before
                               [(second args) (nthnext args 2)]
                               [(first args) (nthnext args 1)])
         check-fn `(fn []
                     (do
-                      (if ~pre ~pre)
+                      (if ~before (apply ~before []))
                       (let [~@arb-bindings]
                         ~@body)))]
     (when *load-tests*
