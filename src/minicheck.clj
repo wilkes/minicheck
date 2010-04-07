@@ -156,20 +156,25 @@
   (binding [*test-run-count* n] (prop)))
 
 (defmacro defcheck [name & args]
-  (let [before (:before (first args))
-        [arb-bindings body] (if before
+  (let [[arb-bindings body] (if (map? (first args))
                               [(second args) (nthnext args 2)]
                               [(first args) (nthnext args 1)])
+        maybe-run (fn [k] `(if ~(k (first args))
+                             (apply ~(k (first args)) [])))
         check-fn `(fn []
                     (do
-                      (if ~before (apply ~before []))
+                      ~(maybe-run :before)
                       (let [~@arb-bindings]
-                        ~@body)))]
+                        ~@body)
+                      ~(maybe-run :after)))
+        test-fn `(fn []
+                   ~(maybe-run :before-all)
+                   (doseq [pass?#
+                           (take *test-run-count*
+                                 (repeatedly ~check-fn))
+                           :while pass?#]
+                     (print "."))
+                   ~(maybe-run :after-all))]
     (when *load-tests*
-      `(def ~(vary-meta name assoc :test
-                        `#(doseq [pass?#
-                                  (take *test-run-count*
-                                        (repeatedly ~check-fn))
-                                  :while pass?#]
-                            (print ".")))
+      `(def ~(vary-meta name assoc :test test-fn)
             #(test-var (var ~name))))))

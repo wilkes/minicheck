@@ -60,3 +60,12 @@
                    (in-range? (int %) (int \a) (int \z))
                    (in-range? (int %) (int \A) (int \Z)))
               s)))
+
+(let [run-count (atom nil)]
+  (defcheck lifecycle-check
+    {:before-all #(swap! run-count (fn [_] 0))
+     :before #(swap! run-count inc)
+     :after #(is (<= @run-count *test-run-count*))
+     :after-all #(is (= @run-count *test-run-count*))}
+    []
+    (is (> @run-count 0))))
