@@ -155,17 +155,21 @@
 (defn with-run-count [n prop]
   (binding [*test-run-count* n] (prop)))
 
-(defn run-property [check-fn arbs]
-  (doseq [pass? (take *test-run-count* (repeatedly #(apply check-fn (for [g arbs] (g)))))
-          :while pass?]
-    (print ".")))
-
-(defmacro defcheck [name arb-bindings & body]
-  (let [arb-map (apply sorted-map arb-bindings)
-        vars (keys arb-map)
-        arbs (vals arb-map)]
+(defmacro defcheck [name & args]
+  (let [pre (:pre (first args))
+        [arb-bindings body] (if pre
+                              [(second args) (nthnext args 2)]
+                              [(first args) (nthnext args 1)])
+        check-fn `(fn []
+                    (do
+                      (if ~pre ~pre)
+                      (let [~@arb-bindings]
+                        ~@body)))]
     (when *load-tests*
       `(def ~(vary-meta name assoc :test
-                        `#(run-property (fn [~@vars] ~@body)
-                                        [~@arbs]))
+                        `#(doseq [pass?#
+                                  (take *test-run-count*
+                                        (repeatedly ~check-fn))
+                                  :while pass?#]
+                            (print ".")))
             #(test-var (var ~name))))))
