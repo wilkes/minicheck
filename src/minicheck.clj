@@ -21,7 +21,8 @@
 ;; THE SOFTWARE.
 
 (ns minicheck
-  (:use clojure.test))
+  (:use clojure.test
+        clojure.contrib.pprint))
 
 (def *random* (java.util.Random.))
 
@@ -81,6 +82,8 @@
                    (choose (options :min) (options :max)))]
     #(take (arb-size) (repeatedly arb))))
 
+(defn eager-seq-of [arb & options]
+  #(doall ((apply seq-of arb options))))
 
 ;; These exist for consistency and so that you can call the gen macro
 ;; for the arbitrary combinators
@@ -99,6 +102,9 @@
 
 (defmethod arbitrary :seq-of [_ & options]
   (apply seq-of options))
+
+(defmethod arbitrary :eager-seq-of [_ & options]
+  (apply eager-seq  options))
 
 
 ;; Character and string arbitraries
@@ -162,11 +168,11 @@
         maybe-run (fn [k] `(if ~(k (first args))
                              (apply ~(k (first args)) [])))
         check-fn `(fn []
-                    (do
-                      ~(maybe-run :before)
-                      (let [~@arb-bindings]
-                        ~@body)
-                      ~(maybe-run :after)))
+                    ~(maybe-run :before)
+                    (let [~@arb-bindings
+                          result# (do ~@body)]
+                      ~(maybe-run :after)
+                      result#))
         test-fn `(fn []
                    ~(maybe-run :before-all)
                    (doseq [pass?#

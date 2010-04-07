@@ -69,3 +69,18 @@
      :after-all #(is (= @run-count *test-run-count*))}
     []
     (is (> @run-count 0))))
+
+(let [cs (atom 0)]
+  (defcheck eager-seq-of-is-eager
+    {:before-all #(swap! cs (fn [_] 0))
+     :after-all #(is (= @cs (* 10 *test-run-count*)))}
+    [xs (gen :eager-seq-of #(swap! cs inc) :exactly 10)]
+    (is (> @cs 0))))
+
+
+(let [cs (atom 0)]
+  (defcheck seq-of-is-lazy
+    {:before-all #(swap! cs (fn [_] 0))
+     :after-all #(is (= @cs 0))}
+    [xs (gen :seq-of #(swap! cs inc) :exactly 10)]
+    (is (= @cs 0))))
