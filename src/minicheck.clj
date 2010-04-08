@@ -165,6 +165,9 @@
   (let [[arb-bindings body] (if (map? (first args))
                               [(second args) (nthnext args 2)]
                               [(first args) (nthnext args 1)])
+        arb-bindings (vec (mapcat (fn [[v arb]]
+                                    `[~v (~arb)])
+                                  (partition 2 arb-bindings)))
         maybe-run (fn [k] `(if ~(k (first args))
                              (apply ~(k (first args)) [])))
         check-fn `(fn []

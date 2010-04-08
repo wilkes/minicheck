@@ -8,11 +8,11 @@
   (seq-of (arbitrary :int) :exactly 10))
 
 (defcheck sort-is-idempotent
-  [xs (gen ::list)]
+  [xs (arbitrary ::list)]
   (is (= (sort (sort xs)) (sort xs))))
 
 (defcheck sort-min-first
-  [xs (gen :such-that not-empty (arbitrary ::list))]
+  [xs (arbitrary :such-that not-empty (arbitrary ::list))]
   (is (= (first (sort xs)) (apply min xs))))
 
 (defn ordered? [[x & xs]]
@@ -22,7 +22,7 @@
    (< x (first xs)) (recur xs)))
 
 (defcheck sort-is-ordered
-  [xs (gen ::list)]
+  [xs (arbitrary ::list)]
   (is (ordered? (sort xs))))
 
 (defn seq-diff [xs ys]
@@ -34,15 +34,15 @@
    (empty? (seq-diff ys xs))))
 
 (defcheck sort-is-permutation
-  [xs (gen ::list)]
+  [xs (arbitrary ::list)]
   (is (permuation? xs (sort xs))))
 
 (defcheck sort-max-last
-  [xs (gen :such-that not-empty (arbitrary ::list))]
+  [xs (arbitrary :such-that not-empty (arbitrary ::list))]
   (is (= (last (sort xs)) (apply max xs))))
 
 (defcheck sort-concat
-  [xs (gen :such-that not-empty (arbitrary ::list))
-   ys (gen :such-that not-empty (arbitrary ::list))]
+  [xs (arbitrary :such-that not-empty (arbitrary ::list))
+   ys (arbitrary :such-that not-empty (arbitrary ::list))]
   (is (= (first (sort (concat xs ys)))
          (min (apply min xs) (apply min ys)))))
