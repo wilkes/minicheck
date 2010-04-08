@@ -104,7 +104,7 @@
   (apply seq-of options))
 
 (defmethod arbitrary :eager-seq-of [_ & options]
-  (apply eager-seq  options))
+  (apply eager-seq-of options))
 
 
 ;; Character and string arbitraries
@@ -169,18 +169,19 @@
                              (apply ~(k (first args)) [])))
         check-fn `(fn []
                     ~(maybe-run :before)
-                    (let [~@arb-bindings
-                          result# (do ~@body)]
-                      ~(maybe-run :after)
-                      result#))
+                    (let [~@arb-bindings]
+                      (try ~@body
+                       (finally ~(maybe-run :after)))))
         test-fn `(fn []
                    ~(maybe-run :before-all)
-                   (doseq [pass?#
-                           (take *test-run-count*
-                                 (repeatedly ~check-fn))
-                           :while pass?#]
-                     (print "."))
-                   ~(maybe-run :after-all))]
+                   (try
+                    (doseq [pass?#
+                            (take *test-run-count*
+                                  (repeatedly ~check-fn))
+                            :while pass?#]
+                      (print "."))
+                    (finally
+                     ~(maybe-run :after-all))))]
     (when *load-tests*
       `(def ~(vary-meta name assoc :test test-fn)
             #(test-var (var ~name))))))
