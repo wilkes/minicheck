@@ -22,31 +22,42 @@
 
 (ns minicheck
   (:use clojure.test
-        clojure.contrib.pprint))
+        clojure.contrib.pprint)
+  (:import java.util.Calendar
+           java.text.SimpleDateFormat))
 
 (def *random* (java.util.Random.))
 
-(defmulti arbitrary
+(defmulti arb
   "Returns a function that will return arbitrary data."
   (fn [& args] (first args)))
 
-(defmethod arbitrary :bool     [_] #(. *random* nextBoolean))
-(defmethod arbitrary :double   [_] #(. *random* nextDouble))
-(defmethod arbitrary :float    [_] #(. *random* nextFloat))
-(defmethod arbitrary :gaussian [_] #(. *random* nextGaussian))
 
-(defmethod arbitrary :int
-  [_ & [size]]
-  (if size
-    #(. *random* nextInt size)
-    #(. *random* nextInt)))
+(defmacro defarbfn [name-kw args & body]
+  `(defmethod arb ~name-kw [kw# ~@args]
+     (fn []
+       ~@body)))
 
-(defmethod arbitrary :long     [_] #(. *random* nextLong))
+(defmacro defarb [name-kw args & body]
+  `(defmethod arb ~name-kw [kw# ~@args]
+     ~@body))
+
+(defmacro gen [& params]
+  `((arb ~@params)))
+
+(defarbfn :bool     []     (. *random* nextBoolean))
+(defarbfn :double   []     (. *random* nextDouble))
+(defarbfn :float    []     (. *random* nextFloat))
+(defarbfn :gaussian []     (. *random* nextGaussian))
+(defarbfn :int [& [size]]  (if size
+                             (. *random* nextInt size)
+                             (. *random* nextInt)))
+(defarbfn :long     []     (. *random* nextLong))
 
 (defn elements
   "Arbitrary combinator that will return a random item from the supplied collection."
   [coll]
-  (let [g (arbitrary :int (count coll))]
+  (let [g (arb :int (count coll))]
     #(nth (vec coll) (g))))
 
 (defn one-of
@@ -67,7 +78,7 @@
   "Arbitrary combinator that will return an int within the given range (inclusive)"
   [low high]
   (such-that (fn [i] (and (<= low i) (>= high i)))
-             (arbitrary :int (inc high))))
+             (arb :int (inc high))))
 
 (defn seq-of
   "Arbitrary combinator that will return a seq of values from the supplied arbitrary.  Options:
@@ -88,68 +99,93 @@
 ;; These exist for consistency and so that you can call the gen macro
 ;; for the arbitrary combinators
 
-(defmethod arbitrary :elements [_ & [coll]]
+(defarb :elements [& [coll]]
   (elements coll))
 
-(defmethod arbitrary :one-of [_ & gen-coll]
+(defarb :one-of [& gen-coll]
   (apply one-of gen-coll))
 
-(defmethod arbitrary :such-that [_ & [test-fn arb]]
+(defarb :such-that [& [test-fn arb]]
   (such-that test-fn arb))
 
-(defmethod arbitrary :choose [_ & [low high]]
+(defarb :choose [& [low high]]
   (choose low high))
 
-(defmethod arbitrary :seq-of [_ & options]
+(defarb :seq-of [& options]
   (apply seq-of options))
 
-(defmethod arbitrary :eager-seq-of [_ & options]
+(defarb :eager-seq-of [& options]
   (apply eager-seq-of options))
 
 
 ;; Character and string arbitraries
 
-(defmethod arbitrary :character [_ & [low high]]
-  (let [low  (if low low 32)
-        high (if high high 127)  ;; default to basic Latin characters
-        arb-int (choose low high)]
-    #(char (arb-int))))
+(defarbfn :character [& [low high]]
+  (char (gen :choose (or low 32) (or high 127))))
 
-(defmethod arbitrary :alpha-lower-char [_]
-  (arbitrary :character (int \a) (int \z)))
+(defarb :alpha-lower-char []
+  (arb :character (int \a) (int \z)))
 
-(defmethod arbitrary :alpha-upper-char [_]
-  (arbitrary :character (int \A) (int \Z)))
+(defarb :alpha-upper-char []
+  (arb :character (int \A) (int \Z)))
 
-(defmethod arbitrary :numeric-char [_]
-  (arbitrary :character (int \0) (int \9)))
+(defarb :numeric-char []
+  (arb :character (int \0) (int \9)))
 
-(defmethod arbitrary :alphanumeric-char [_]
-  (one-of (arbitrary :alpha-lower-char)
-          (arbitrary :alpha-upper-char)
-          (arbitrary :numeric-char)))
+(defarb :alphanumeric-char []
+  (one-of (arb :alpha-lower-char)
+          (arb :alpha-upper-char)
+          (arb :numeric-char)))
 
-(defmethod arbitrary :string [_ arb-characters]
-  #(apply str (arb-characters)))
+(defarbfn :string [arb-characters]
+  (apply str (arb-characters)))
 
+;; Arbitrary Dates
+(defn date
+  "A convenience constructor for making a java.util.Date.  Takes zero or more 
+   args. Zero args return the current time. One or more args returns a date 
+   values provided and all other values zeroed out.
+   Args are year, month, date, hour, minute, second, and  milliseconds"
+  [& [year month date hour minute second milli]]
+  (let [c  (Calendar/getInstance)
+        z? #(int (or % 0))]
+    (when year
+      (.set c Calendar/YEAR        (z? year))
+      (.set c Calendar/MONTH       (z? (- (or month 1) 1)))
+      (.set c Calendar/DATE        (z? date))
+      (.set c Calendar/HOUR_OF_DAY (z? hour))
+      (.set c Calendar/MINUTE      (z? minute))
+      (.set c Calendar/SECOND      (z? second))
+      (.set c Calendar/MILLISECOND (z? milli)))
+    (.getTime c)))
+
+(defn add-days [number-of-days a-date]
+  (.getTime (doto (Calendar/getInstance)
+              (.setTime a-date)
+              (.add Calendar/DATE number-of-days))))
+
+(defn date-range [start end]
+  (let [days (iterate (partial add-days 1) start)]
+    (for [d days :while (<= (.getTime d) (.getTime end))]
+      d)))
+
+(defarb :date-in [start end]
+  (elements (date-range start end)))
 
 (defn sample*
-  "Returns a lazy sequence of n runs of the supplied arbitrary (defaults 10)"
+  "Returns a lazy sequence of n runs of the supplied arb (defaults 10)"
   ([arb]
      (sample* arb 10))
   ([arb n]
      (take n (repeatedly arb))))
 
 (defn sample
-    "Prints to *out* n runs of the supplied arbitrary (defaults 10)"
+    "Prints to *out* n runs of the supplied arb (defaults 10)"
   ([arb]
      (sample arb 10))
   ([arb size]
      (doseq [s (sample* arb size)]
        (prn s))))
-
-(defmacro gen [& params]
-  `((arbitrary ~@params)))
 
 (defn is-in?
   "Does a linear search to test for membership in a seq"

@@ -4,15 +4,14 @@
 ;; Port of the quicksort examples from
 ;; http://book.realworldhaskell.org/read/testing-and-quality-assurance.html
 
-(defmethod arbitrary ::list [_]
-  (seq-of (arbitrary :int) :exactly 10))
+(defarb ::list [] (seq-of (arb :int) :exactly 10))
 
 (defcheck sort-is-idempotent
-  [xs (arbitrary ::list)]
+  [xs (arb ::list)]
   (is (= (sort (sort xs)) (sort xs))))
 
 (defcheck sort-min-first
-  [xs (arbitrary :such-that not-empty (arbitrary ::list))]
+  [xs (arb :such-that not-empty (arb ::list))]
   (is (= (first (sort xs)) (apply min xs))))
 
 (defn ordered? [[x & xs]]
@@ -22,7 +21,7 @@
    (< x (first xs)) (recur xs)))
 
 (defcheck sort-is-ordered
-  [xs (arbitrary ::list)]
+  [xs (arb ::list)]
   (is (ordered? (sort xs))))
 
 (defn seq-diff [xs ys]
@@ -34,15 +33,15 @@
    (empty? (seq-diff ys xs))))
 
 (defcheck sort-is-permutation
-  [xs (arbitrary ::list)]
+  [xs (arb ::list)]
   (is (permuation? xs (sort xs))))
 
 (defcheck sort-max-last
-  [xs (arbitrary :such-that not-empty (arbitrary ::list))]
+  [xs (arb :such-that not-empty (arb ::list))]
   (is (= (last (sort xs)) (apply max xs))))
 
 (defcheck sort-concat
-  [xs (arbitrary :such-that not-empty (arbitrary ::list))
-   ys (arbitrary :such-that not-empty (arbitrary ::list))]
+  [xs (arb :such-that not-empty (arb ::list))
+   ys (arb :such-that not-empty (arb ::list))]
   (is (= (first (sort (concat xs ys)))
          (min (apply min xs) (apply min ys)))))

@@ -3,34 +3,34 @@
         minicheck))
 
 (defcheck elements-property
-  [x (arbitrary :elements [1 2 3])]
+  [x (arb :elements [1 2 3])]
   (is (is-in? x [1 2 3])))
 
 (defcheck one-of-property
-  [x (arbitrary :one-of
+  [x (arb :one-of
           (elements [1 2 3])
           (elements [true false]))]
   (is (or (is-in? x [1 2 3])
             (is-in? x [true false]))))
 
 (defcheck such-that-property
-  [b (arbitrary :such-that true? (arbitrary :bool))]
+  [b (arb :such-that true? (arb :bool))]
   (is b))
 
 (defcheck seq-of-exactly-property
-  [xs (arbitrary :seq-of (arbitrary :bool) :exactly 5)]
+  [xs (arb :seq-of (arb :bool) :exactly 5)]
   (is (= (count xs) 5)))
 
 (defcheck seq-of-max-property
-  [xs (arbitrary :seq-of (arbitrary :bool) :max 5)]
+  [xs (arb :seq-of (arb :bool) :max 5)]
   (is (<= (count xs) 5)))
 
 (defcheck seq-of-min-property
-  [xs (arbitrary :seq-of (arbitrary :bool) :min 5)]
+  [xs (arb :seq-of (arb :bool) :min 5)]
   (is (>= (count xs) 5)))
 
 (defcheck choose-property
-  [x (arbitrary :choose 1 3)]
+  [x (arb :choose 1 3)]
   (is (and (>= x 1) (<= x 3))))
 
 (defcheck multi-arg-property
@@ -42,19 +42,19 @@
   (and (<= lo val) (>= hi val)))
 
 (defcheck alpha-lower-property
-  [c (arbitrary :alpha-lower-char)]
+  [c (arb :alpha-lower-char)]
   (is (in-range? (int c) (int \a) (int \z))))
 
 (defcheck alpha-upper-property
-  [c (arbitrary :alpha-upper-char)]
+  [c (arb :alpha-upper-char)]
   (is (in-range? (int c) (int \A) (int \Z))))
 
 (defcheck number-char-property
-  [c (arbitrary :numeric-char)]
+  [c (arb :numeric-char)]
   (is (in-range? (int c) (int \0) (int \9))))
 
 (defcheck alphanumeric-string-property
-  [s (arbitrary :string (seq-of (arbitrary :alphanumeric-char)
+  [s (arb :string (seq-of (arb :alphanumeric-char)
                           :min-size 1 :max-size 36))]
   (is (every? #(or (in-range? (int %) (int \0) (int \9))
                    (in-range? (int %) (int \a) (int \z))
@@ -73,12 +73,19 @@
 (let [cs (atom 0)]
   (defcheck eager-seq-of-is-eager
     {:after-all #(is (= @cs (* 10 *test-run-count*)))}
-    [xs (arbitrary :eager-seq-of #(swap! cs inc) :exactly 10)]
+    [xs (arb :eager-seq-of #(swap! cs inc) :exactly 10)]
     (is (> @cs 0))))
 
 
 (let [cs (atom 0)]
   (defcheck seq-of-is-lazy
     {:after-all #(is (= @cs 0))}
-    [xs (arbitrary :seq-of #(swap! cs inc) :exactly 10)]
+    [xs (arb :seq-of #(swap! cs inc) :exactly 10)]
     (is (= @cs 0))))
+
+(defcheck date-in-bounds
+  [d (arb :date-in
+                (add-days -30 (java.util.Date.))
+                (java.util.Date.))]
+  (is (>= (.getTime (java.util.Date.))
+          (.getTime d))))
